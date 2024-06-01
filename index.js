@@ -74,17 +74,18 @@ async function run() {
 
 
         // user related api
-        app.get('/user', verifyToken, verifyAdmin, async (req, res) => {
-            try {
-                // console.log("Result:", req.headers); // Debugging
-                const result = await userCollection.find().toArray();
+        // app.get('/user', verifyToken, verifyAdmin, async (req, res) => {
+        //     try {
+        //         // console.log("Result:", req.headers); // Debugging
+        //         const result = await userCollection.find().toArray();
 
-                res.send(result);
-            } catch (error) {
-                console.error(error);
-                res.status(500).send("Internal Server Error");
-            }
-        });
+        //         res.send(result);
+        //     } catch (error) {
+        //         console.error(error);
+        //         res.status(500).send("Internal Server Error");
+        //     }
+        // });
+
 
 
         app.post('/user', async (req, res) => {
