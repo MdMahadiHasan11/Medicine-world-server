@@ -39,7 +39,7 @@ async function run() {
         await client.connect();
         const userCollection = client.db('medicineDB').collection('users');
         const medicineCollection = client.db('medicineDB').collection('allMedicines');
-        // const appointmentCollection = client.db('medicineDB').collection('appointmentDoctor');
+        const addCardCollection = client.db('medicineDB').collection('cardItem');
         // const paymentsCollection = client.db('medicineDB').collection('payments');
 
         // admin related 
@@ -181,6 +181,20 @@ async function run() {
                 res.status(500).send("Internal Server Error");
             }
         });
+        // category medicines load
+        app.get('/categoryMedicines/:category', async (req, res) => {
+            try {
+                const category = req.params.category;
+                const query = { category: category }
+                const result = await medicineCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error hasan");
+            }
+        });
+
 
         // one doctor loaded
         // app.get('/allDoctor/:id', async (req, res) => {
@@ -243,31 +257,31 @@ async function run() {
 
 
         // store appointment
-        // app.post('/bookAppointment', async (req, res) => {
-        //     try {
-        //         const appointment = req.body;
-        //         const result = await appointmentCollection.insertOne(appointment);
-        //         res.send(result);
-        //     } catch (error) {
-        //         console.error(error);
-        //         res.status(500).send("Internal Server Error");
-        //     }
+        app.post('/addCard', async (req, res) => {
+            try {
+                const medicine = req.body;
+                const result = await addCardCollection.insertOne(medicine);
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
 
-        // })
+        })
 
         // load appointment
-        // app.get('/bookAppointment', async (req, res) => {
-        //     try {
-        //         const email = req.query.email;
-        //         const query = { patientEmail: email }
-        //         const result = await appointmentCollection.find(query).toArray();
-        //         // console.log("Result:", result); // Debugging
-        //         res.send(result);
-        //     } catch (error) {
-        //         console.error(error);
-        //         res.status(500).send("Internal Server Error");
-        //     }
-        // });
+        app.get('/cardItem', async (req, res) => {
+            try {
+                const email = req.query.email;
+                const query = { userEmail: email }
+                const result = await addCardCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
 
         // delete appointment
         // app.delete('/appointment/:id', async (req, res) => {
