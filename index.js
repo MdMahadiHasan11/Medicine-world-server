@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config()
-// const jwt = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
 // const stripe = require('stripe')(process.env.STRIPE_KEY);
 
 // auto
@@ -38,38 +38,38 @@ async function run() {
 
         await client.connect();
         const userCollection = client.db('medicineDB').collection('users');
-        // const doctorCollection = client.db('doctorDB').collection('allDoctor');
-        // const appointmentCollection = client.db('doctorDB').collection('appointmentDoctor');
-        // const paymentsCollection = client.db('doctorDB').collection('payments');
+        const medicineCollection = client.db('medicineDB').collection('allMedicines');
+        // const appointmentCollection = client.db('medicineDB').collection('appointmentDoctor');
+        // const paymentsCollection = client.db('medicineDB').collection('payments');
 
         // admin related 
-        // const verifyToken = (req, res, next) => {
-        //     console.log('inside toktok ', req.headers.authorization)
-        //     if (!req.headers.authorization) {
-        //         return res.status(401).send({ message: 'unauthorized access' })
-        //     }
-        //     const token = req.headers.authorization.split(' ')[1];
+        const verifyToken = (req, res, next) => {
+            console.log('inside toktok ', req.headers.authorization)
+            if (!req.headers.authorization) {
+                return res.status(401).send({ message: 'unauthorized access' })
+            }
+            const token = req.headers.authorization.split(' ')[1];
 
-        //     jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
-        //         if (err) {
-        //             return res.status(401).send({ message: 'unauthorized access' })
-        //         }
-        //         req.decoded = decoded;
-        //         next();
-        //     })
-        // }
+            jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+                if (err) {
+                    return res.status(401).send({ message: 'unauthorized access' })
+                }
+                req.decoded = decoded;
+                next();
+            })
+        }
         // verify admin
-        // const verifyAdmin = async (req, res, next) => {
-        //     const email = req.decoded.email;
-        //     const query = { email: email };
-        //     const user = await userCollection.findOne(query);
-        //     const isAdmin = user?.role === 'admin';
-        //     if (!isAdmin) {
-        //         return res.status(403).send({ message: 'forbidden access' });
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            const isAdmin = user?.role === 'admin';
+            if (!isAdmin) {
+                return res.status(403).send({ message: 'forbidden access' });
 
-        //     }
-        //     next();
-        // }
+            }
+            next();
+        }
         // admin related
 
 
@@ -127,20 +127,35 @@ async function run() {
         //         res.status(500).send("Internal Server Error");
         //     }
         // })
+
         // admin check
-        // app.get('/user/admin/:email', verifyToken, async (req, res) => {
-        //     const email = req.params.email;
-        //     if (email !== req.decoded.email) {
-        //         return res.status(403).send({ message: 'unauthorized access' })
-        //     }
-        //     const query = { email: email }
-        //     const result = await userCollection.findOne(query);
-        //     let admin = false;
-        //     if (result) {
-        //         admin = result?.role === 'admin';
-        //     }
-        //     res.send({ admin });
-        // })
+        app.get('/user/admin/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            if (email !== req.decoded.email) {
+                return res.status(403).send({ message: 'unauthorized access' })
+            }
+            const query = { email: email }
+            const result = await userCollection.findOne(query);
+            let admin = false;
+            if (result) {
+                admin = result?.role === 'admin';
+            }
+            res.send({ admin });
+        })
+        // seller check
+        app.get('/user/seller/:email', verifyToken, async (req, res) => {
+            const email = req.params.email;
+            if (email !== req.decoded.email) {
+                return res.status(403).send({ message: 'unauthorized access' })
+            }
+            const query = { email: email }
+            const result = await userCollection.findOne(query);
+            let seller = false;
+            if (result) {
+                seller = result?.role === 'seller';
+            }
+            res.send({ seller });
+        })
 
 
 
@@ -148,24 +163,24 @@ async function run() {
 
 
         // auth related api start,, logger
-        // app.post('/jwt', async (req, res) => {
-        //     const user = req.body;
-        //     const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
-        //     res.send({ token });
-        // })
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+            res.send({ token });
+        })
 
 
-        // new last 3 data
-        // app.get('/allDoctor', async (req, res) => {
-        //     try {
-        //         const result = await doctorCollection.find().toArray();
-        //         // console.log("Result:", result); // Debugging
-        //         res.send(result);
-        //     } catch (error) {
-        //         console.error(error);
-        //         res.status(500).send("Internal Server Error");
-        //     }
-        // });
+        // All medicines
+        app.get('/allMedicines', async (req, res) => {
+            try {
+                const result = await medicineCollection.find().toArray();
+                // console.log("Result:", result); // Debugging
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
 
         // one doctor loaded
         // app.get('/allDoctor/:id', async (req, res) => {
