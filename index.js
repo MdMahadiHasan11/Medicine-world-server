@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config()
 const jwt = require('jsonwebtoken');
-// const stripe = require('stripe')(process.env.STRIPE_KEY);
+const stripe = require('stripe')(process.env.STRIPE_KEY);
 
 // auto
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -40,8 +40,9 @@ async function run() {
         const userCollection = client.db('medicineDB').collection('users');
         const medicineCollection = client.db('medicineDB').collection('allMedicines');
         const addCardCollection = client.db('medicineDB').collection('cardItem');
-        // const paymentsCollection = client.db('medicineDB').collection('payments');
-
+        const paymentsCollection = client.db('medicineDB').collection('allPayments');
+        const categoryCollection = client.db('medicineDB').collection('allcategory');
+        const sellerBannerCollection = client.db('medicineDB').collection('sellerBanner');
         // admin related 
         const verifyToken = (req, res, next) => {
             console.log('inside toktok ', req.headers.authorization)
@@ -65,6 +66,19 @@ async function run() {
             const user = await userCollection.findOne(query);
             const isAdmin = user?.role === 'admin';
             if (!isAdmin) {
+                return res.status(403).send({ message: 'forbidden access' });
+
+            }
+            next();
+        }
+
+        // verify seller
+        const verifySeller = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await userCollection.findOne(query);
+            const isSeller = user?.role === 'seller';
+            if (!isSeller) {
                 return res.status(403).send({ message: 'forbidden access' });
 
             }
@@ -175,17 +189,32 @@ async function run() {
             try {
                 const result = await medicineCollection.find().toArray();
                 // console.log("Result:", result); // Debugging
+                
                 res.send(result);
             } catch (error) {
                 console.error(error);
                 res.status(500).send("Internal Server Error");
             }
         });
-        // category medicines load
+        // category medicines load 
         app.get('/categoryMedicines/:category', async (req, res) => {
             try {
                 const category = req.params.category;
                 const query = { category: category }
+                const result = await medicineCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+        // discount medicines
+        app.get('/disMedicines', async (req, res) => {
+            try {
+                
+                const query = { discountPercentage: { $gt: 0 } };
                 const result = await medicineCollection.find(query).toArray();
                 // console.log("Result:", result); // Debugging
                 res.send(result);
@@ -284,54 +313,168 @@ async function run() {
         });
 
         // delete appointment
-        // app.delete('/appointment/:id', async (req, res) => {
-        //     try {
-        //         const id = req.params.id;
-        //         const query = { _id: new ObjectId(id) }
-        //         const result = await appointmentCollection.deleteOne(query);
-        //         res.send(result);
-        //     } catch (error) {
-        //         console.error(error);
-        //         res.status(500).send("Internal Server Error");
-        //     }
-        // })
+        app.delete('/cardItem/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) }
+                const result = await addCardCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        })
+        // delete all
+        app.delete('/allCardItem', async (req, res) => {
+            try {
+                const ids = req.body.idsToDelete.map(id => new ObjectId(id)); // Parsing the IDs from request body
+                const result = await addCardCollection.deleteMany({ _id: { $in: ids } });
+                res.send(result);
+                // console.log('inside',req.body.idsToDelete)
+
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+        // update
+        app.patch('/cardItemQuantity/:id', async (req, res) => {
+            const id = req.params.id;
+            const cardItem = req.body;
+            const disC = (cardItem.perUnitPrice * cardItem.discountPercentage) / 100;
+            const price = parseFloat(cardItem.quantity * (cardItem.perUnitPrice - disC));
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    grandTotal: price.toFixed(2),
+                    quantity: cardItem.quantity
+                }
+
+            }
+            const updateCount = await addCardCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+
+        })
 
 
         // payment
-        // app.post("/create-payment-intent", async (req, res) => {
-        //     const { price } = req.body;
+        app.post("/create-payment-intent", async (req, res) => {
+            const { price } = req.body;
 
-        //     const amount = parseInt(price * 100);
-        //     const paymentIntent = await stripe.paymentIntents.create({
-        //         amount: amount,
-        //         currency: "usd",
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
 
-        //         payment_method_types: ['card']
-        //     });
+                payment_method_types: ['card']
+            });
 
-        //     res.send({
-        //         clientSecret: paymentIntent.client_secret,
-        //     });
-        // });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
 
-        // app.post('/payments', async (req, res) => {
-        //     const payment = req.body;
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
 
-        //     const paymentResult = await paymentsCollection.insertOne(payment);
+            const paymentResult = await paymentsCollection.insertOne(payment);
 
-        //     // 
-        //     const query = {
-        //         _id: {
-        //             $in: payment.appointmentIds.map(id => new ObjectId(id))
-        //         }
-        //     }
+            // 
+            const query = {
+                _id: {
+                    $in: payment.cardItemIds.map(id => new ObjectId(id))
+                }
+            }
 
-        //     const deleteResult=await appointmentCollection.deleteMany(query);
-        //     // console.log('payment info', payment);
-        //     res.send({paymentResult,deleteResult});
-        //     console.log('payment info', paymentResult,deleteResult);
+            const deleteResult = await addCardCollection.deleteMany(query);
+            // console.log('payment info', payment);
+            res.send({ paymentResult, deleteResult });
+            console.log('payment info', paymentResult, deleteResult);
 
-        // })
+        })
+
+        // seller
+        app.get('/sellerMedicines/:email',verifyToken,verifySeller, async (req, res) => {
+            try {
+                const email = req.params.email;
+                const query = { email: email }
+                const result = await medicineCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error hasan");
+            }
+        });
+
+        // All category
+        app.get('/allCategory', async (req, res) => {
+            try {
+                const result = await categoryCollection.find().toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+        // medicines post by seller
+
+        app.post('/allMedicines', async (req, res) => {
+            const medicine = req.body;
+            // duplicate email not granted;
+            // const query = { email: user.email };
+            // const existingUser = await userCollection.findOne(query);
+            // if (existingUser) {
+            //     return res.send({ message: 'user already exist', insertedId: null })
+            // }
+            const result = await medicineCollection.insertOne(medicine);
+            res.send(result)
+        })
+        // banner post
+        app.post('/allBanner', async (req, res) => {
+            const banner = req.body;
+            const result = await sellerBannerCollection.insertOne(banner);
+            res.send(result)
+        })
+        // 
+        app.get('/sellerBanner/:email',verifyToken,verifySeller, async (req, res) => {
+            try {
+                const email = req.params.email;
+                const query = { email: email }
+                const result = await sellerBannerCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
+                console.log('all--',result)
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error hasan");
+            }
+        });
+
+        // delete addMedicine seller
+        app.delete('/sellerMedicine/:id',verifyToken,verifySeller, async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) }
+                const result = await medicineCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        })
+        // delete addBanner seller
+        app.delete('/sellerBanner/:id',verifyToken,verifySeller, async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) }
+                const result = await sellerBannerCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        })
 
 
 
