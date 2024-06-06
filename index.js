@@ -43,6 +43,7 @@ async function run() {
         const paymentsCollection = client.db('medicineDB').collection('allPayments');
         const categoryCollection = client.db('medicineDB').collection('allcategory');
         const sellerBannerCollection = client.db('medicineDB').collection('sellerBanner');
+        const activeBannerCollection = client.db('medicineDB').collection('ActiveBanner');
         // admin related 
         const verifyToken = (req, res, next) => {
             console.log('inside toktok ', req.headers.authorization)
@@ -407,7 +408,7 @@ async function run() {
             }
         });
 
-        // All category
+        // All category for Seller
         app.get('/allCategory', async (req, res) => {
             try {
                 const result = await categoryCollection.find().toArray();
@@ -469,6 +470,136 @@ async function run() {
                 const id = req.params.id;
                 const query = { _id: new ObjectId(id) }
                 const result = await sellerBannerCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        })
+
+        // admin
+        // admin load all User
+        app.get('/allUser', async (req, res) => {
+            try {
+                const result = await userCollection.find().toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+        // admin load all Category
+        app.get('/admin/category', async (req, res) => {
+            try {
+                const result = await categoryCollection.find().toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+        // make admin '
+        app.patch('/user/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const user =req.body;
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: user.role
+                }
+
+            }
+            const updateCount = await userCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+
+        })
+        // Admin Category post
+        app.post('/admin/allCategory',verifyToken,verifyAdmin , async (req, res) => {
+            const category = req.body;
+            const result = await categoryCollection.insertOne(category);
+            res.send(result)
+        })
+
+         //admin update doctor 
+        app.patch('/admin/update/category/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const categoryInfo = req.body;
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set:{
+                    category:categoryInfo.category,
+                    title:categoryInfo.title,
+                    description:categoryInfo.description,
+                    image:categoryInfo.image 
+                }
+
+            }
+            const updateCount = await categoryCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+
+        })
+
+         // admin load all banner
+        app.get('/admin/banner', async (req, res) => {
+            try {
+                const result = await sellerBannerCollection.find().toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+        // admin update seller status Banner
+        app.patch('/admin/update/banner/:id', verifyToken, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const bannerInfo = req.body;
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set:{
+                    status:bannerInfo.status,
+                    adminEmail:bannerInfo.adminEmail
+                }
+
+            }
+            const updateCount = await sellerBannerCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+
+        })
+
+         //admin Active banner post
+         app.post('/admin/active/banner', async (req, res) => {
+            const banner = req.body;
+            const result = await activeBannerCollection.insertOne(banner);
+            res.send(result)
+        })
+        // home active banner load for all user /active/banner
+        app.get('/active/banner', async (req, res) => {
+            try {
+               
+                //  const query = {
+                // _id: {
+                //     $in: payment.cardItemIds.map(id => new ObjectId(id))
+                // }
+            
+                const query = { status: 'active'}
+                const result = await sellerBannerCollection.find(query).toArray();
+                
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+
+
+
+        // delete addMedicine seller
+        app.delete('/admin/category/:id',verifyToken,verifyAdmin, async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) }
+                const result = await categoryCollection.deleteOne(query);
                 res.send(result);
             } catch (error) {
                 console.error(error);
