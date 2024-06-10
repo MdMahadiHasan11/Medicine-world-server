@@ -437,17 +437,17 @@ async function run() {
             try {
                 const medicine = req.body;
                 const email = req.params.email;
-        
+
                 if (!Array.isArray(medicine)) {
                     return res.status(400).send('Expected an array of payment objects');
                 }
                 const deleteResult = await invoiceCollection.deleteMany({ userEmail: email });
                 // Insert the payment objects
                 const insertResult = await invoiceCollection.insertMany(medicine);
-        
+
                 // Delete documents from invoiceCollection based on email
-                
-        
+
+
                 res.status(201).send({
                     insertedCount: insertResult.insertedCount,
                     deletedCount: deleteResult.deletedCount
@@ -457,12 +457,12 @@ async function run() {
                 res.status(500).send('Internal Server Error');
             }
         });
-        
+
 
 
         app.get('/payments/invoice/:email', async (req, res) => {
             try {
-                const email=req.params.email;
+                const email = req.params.email;
                 const query = { userEmail: email }
                 const result = await invoiceCollection.find(query).toArray();
                 res.send(result);
@@ -515,7 +515,7 @@ async function run() {
         app.patch('/category/number/:category', async (req, res) => {
             const category = req.params.category;
             // const result = await medicineCollection.find(category).toArray();
-            const query = { category:category};
+            const query = { category: category };
             const updatedDoc = {
                 $inc: {
                     numMedicines: 1
@@ -528,7 +528,7 @@ async function run() {
         app.patch('/category/number/update/:category', async (req, res) => {
             const category = req.params.category;
             // const result = await medicineCollection.find(category).toArray();
-            const query = { category:category};
+            const query = { category: category };
             const updatedDoc = {
                 $inc: {
                     numMedicines: -1
@@ -745,6 +745,17 @@ async function run() {
             res.send(updateCount);
 
         })
+        // payment
+        app.get('/admin/allPayment', async (req, res) => {
+            try {
+                const result = await paymentsCollection.find({status:'paid'}).toArray();
+                const result1 = await paymentsCollection.find({status:'pending'}).toArray();
+                res.send([result,result1]);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
 
 
 
@@ -968,10 +979,10 @@ async function run() {
                     }
                 }
             ]).toArray();
-        
+
             res.send(result);
         });
-        
+
 
 
 
