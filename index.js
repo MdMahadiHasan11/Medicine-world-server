@@ -190,7 +190,7 @@ async function run() {
             try {
                 const result = await medicineCollection.find().toArray();
                 // console.log("Result:", result); // Debugging
-                
+
                 res.send(result);
             } catch (error) {
                 console.error(error);
@@ -210,11 +210,48 @@ async function run() {
                 res.status(500).send("Internal Server Error");
             }
         });
+        // search category /allSearch/
+        app.get('/search/:category/:key', async (req, res) => {
+            console.log(req.params.key)
+            if (req.params.key) {
+                let result = await medicineCollection.find({
+                    category: req.params.category,
+                    "$or": [
+                        { medicinesName: { $regex: req.params.key, $options: 'i' } },
+                        { genericName: { $regex: req.params.key, $options: 'i' } },
+                        { company: { $regex: req.params.key, $options: 'i' } }
+                    ]
+                }).toArray();
+                res.send(result);
+
+            }
+
+
+        })
+
+        // search  allSearch
+        app.get('/allSearch/:key', async (req, res) => {
+            console.log(req.params.key)
+            if (req.params.key) {
+                let result = await medicineCollection.find({
+                    "$or": [
+                        { medicinesName: { $regex: req.params.key, $options: 'i' } },
+                        { genericName: { $regex: req.params.key, $options: 'i' } },
+                        { company: { $regex: req.params.key, $options: 'i' } }
+                    ]
+                }).toArray();
+                res.send(result);
+
+            }
+
+
+        })
+
 
         // discount medicines
         app.get('/disMedicines', async (req, res) => {
             try {
-                
+
                 const query = { discountPercentage: { $gt: 0 } };
                 const result = await medicineCollection.find(query).toArray();
                 // console.log("Result:", result); // Debugging
@@ -347,7 +384,7 @@ async function run() {
             const query = { _id: new ObjectId(id) };
             const updatedDoc = {
                 $set: {
-                    grandTotal: price.toFixed(2),
+                    grandTotal: parseFloat(price.toFixed(2)),
                     quantity: cardItem.quantity
                 }
 
@@ -395,7 +432,7 @@ async function run() {
         })
 
         // seller
-        app.get('/sellerMedicines/:email',verifyToken,verifySeller, async (req, res) => {
+        app.get('/sellerMedicines/:email', verifyToken, verifySeller, async (req, res) => {
             try {
                 const email = req.params.email;
                 const query = { email: email }
@@ -418,7 +455,7 @@ async function run() {
                 res.status(500).send("Internal Server Error");
             }
         });
-        // medicines post by seller
+        // medicines post by seller 
 
         app.post('/allMedicines', async (req, res) => {
             const medicine = req.body;
@@ -431,6 +468,35 @@ async function run() {
             const result = await medicineCollection.insertOne(medicine);
             res.send(result)
         })
+        // category number set 
+        app.patch('/category/number/:category', async (req, res) => {
+            const category = req.params.category;
+            // const result = await medicineCollection.find(category).toArray();
+            const query = { category:category};
+            const updatedDoc = {
+                $inc: {
+                    numMedicines: 1
+                }
+
+            }
+            const updateCount = await categoryCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+        })
+        app.patch('/category/number/update/:category', async (req, res) => {
+            const category = req.params.category;
+            // const result = await medicineCollection.find(category).toArray();
+            const query = { category:category};
+            const updatedDoc = {
+                $inc: {
+                    numMedicines: -1
+                }
+
+            }
+            const updateCount = await categoryCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+        })
+
+
         // banner post
         app.post('/allBanner', async (req, res) => {
             const banner = req.body;
@@ -438,13 +504,13 @@ async function run() {
             res.send(result)
         })
         // 
-        app.get('/sellerBanner/:email',verifyToken,verifySeller, async (req, res) => {
+        app.get('/sellerBanner/:email', verifyToken, verifySeller, async (req, res) => {
             try {
                 const email = req.params.email;
                 const query = { email: email }
                 const result = await sellerBannerCollection.find(query).toArray();
                 // console.log("Result:", result); // Debugging
-                console.log('all--',result)
+                console.log('all--', result)
                 res.send(result);
             } catch (error) {
                 console.error(error);
@@ -453,7 +519,7 @@ async function run() {
         });
 
         // delete addMedicine seller
-        app.delete('/sellerMedicine/:id',verifyToken,verifySeller, async (req, res) => {
+        app.delete('/sellerMedicine/:id', verifyToken, verifySeller, async (req, res) => {
             try {
                 const id = req.params.id;
                 const query = { _id: new ObjectId(id) }
@@ -465,7 +531,7 @@ async function run() {
             }
         })
         // delete addBanner seller
-        app.delete('/sellerBanner/:id',verifyToken,verifySeller, async (req, res) => {
+        app.delete('/sellerBanner/:id', verifyToken, verifySeller, async (req, res) => {
             try {
                 const id = req.params.id;
                 const query = { _id: new ObjectId(id) }
@@ -476,6 +542,23 @@ async function run() {
                 res.status(500).send("Internal Server Error");
             }
         })
+
+        // delete addMedicine seller
+        app.delete('/admin/category/:id', verifyToken, verifyAdmin, async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) }
+                const result = await categoryCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        })
+
+
+
+
 
         // admin
         // admin load all User
@@ -502,7 +585,7 @@ async function run() {
         // make admin '
         app.patch('/user/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
-            const user =req.body;
+            const user = req.body;
             const query = { _id: new ObjectId(id) };
             const updatedDoc = {
                 $set: {
@@ -515,23 +598,23 @@ async function run() {
 
         })
         // Admin Category post
-        app.post('/admin/allCategory',verifyToken,verifyAdmin , async (req, res) => {
+        app.post('/admin/allCategory', verifyToken, verifyAdmin, async (req, res) => {
             const category = req.body;
             const result = await categoryCollection.insertOne(category);
             res.send(result)
         })
 
-         //admin update doctor 
+        //admin update doctor 
         app.patch('/admin/update/category/:id', verifyToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const categoryInfo = req.body;
             const query = { _id: new ObjectId(id) };
             const updatedDoc = {
-                $set:{
-                    category:categoryInfo.category,
-                    title:categoryInfo.title,
-                    description:categoryInfo.description,
-                    image:categoryInfo.image 
+                $set: {
+                    category: categoryInfo.category,
+                    title: categoryInfo.title,
+                    description: categoryInfo.description,
+                    image: categoryInfo.image
                 }
 
             }
@@ -540,7 +623,7 @@ async function run() {
 
         })
 
-         // admin load all banner
+        // admin load all banner
         app.get('/admin/banner', async (req, res) => {
             try {
                 const result = await sellerBannerCollection.find().toArray();
@@ -556,9 +639,9 @@ async function run() {
             const bannerInfo = req.body;
             const query = { _id: new ObjectId(id) };
             const updatedDoc = {
-                $set:{
-                    status:bannerInfo.status,
-                    adminEmail:bannerInfo.adminEmail
+                $set: {
+                    status: bannerInfo.status,
+                    adminEmail: bannerInfo.adminEmail
                 }
 
             }
@@ -567,8 +650,8 @@ async function run() {
 
         })
 
-         //admin Active banner post
-         app.post('/admin/active/banner', async (req, res) => {
+        //admin Active banner post
+        app.post('/admin/active/banner', async (req, res) => {
             const banner = req.body;
             const result = await activeBannerCollection.insertOne(banner);
             res.send(result)
@@ -576,15 +659,60 @@ async function run() {
         // home active banner load for all user /active/banner
         app.get('/active/banner', async (req, res) => {
             try {
-               
+
                 //  const query = {
                 // _id: {
                 //     $in: payment.cardItemIds.map(id => new ObjectId(id))
                 // }
-            
-                const query = { status: 'active'}
+
+                const query = { status: 'active' }
                 const result = await sellerBannerCollection.find(query).toArray();
-                
+
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+        //admin Payment get
+        app.get('/admin/payment', async (req, res) => {
+            try {
+                const result = await paymentsCollection.find().toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+
+        })
+        // admin payment history
+        app.patch('/admin/payment/:id', async (req, res) => {
+            const id = req.params.id;
+            const payment = req.body;
+            const query = { _id: new ObjectId(id) };
+
+            const updatedDoc = {
+                $set: {
+                    status: payment.status
+                }
+
+            }
+            console.log(payment.status, id, query, updatedDoc)
+            const updateCount = await paymentsCollection.updateOne(query, updatedDoc);
+            res.send(updateCount);
+
+        })
+
+
+
+        // user user
+        // user payments
+        app.get('/user/payment/:email', verifyToken, async (req, res) => {
+            try {
+                const email = req.params.email;
+                const query = { email: email }
+                const result = await paymentsCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
                 res.send(result);
             } catch (error) {
                 console.error(error);
@@ -594,18 +722,214 @@ async function run() {
 
 
 
-        // delete addMedicine seller
-        app.delete('/admin/category/:id',verifyToken,verifyAdmin, async (req, res) => {
-            try {
-                const id = req.params.id;
-                const query = { _id: new ObjectId(id) }
-                const result = await categoryCollection.deleteOne(query);
-                res.send(result);
-            } catch (error) {
-                console.error(error);
-                res.status(500).send("Internal Server Error");
-            }
-        })
+
+
+        // mixed 
+        app.get('/seller/stat/:email', async (req, res) => {
+            const emailId = req.params.email;
+            console.log(emailId);
+
+            const result = await paymentsCollection.aggregate([
+                // Combine medicinesIds and quantityIds into a single array of objects
+                {
+                    $project: {
+                        medicinesWithQuantities: {
+                            $map: {
+                                input: { $range: [0, { $size: "$medicinesIds" }] },
+                                as: "idx",
+                                in: {
+                                    medicineId: { $arrayElemAt: ["$medicinesIds", "$$idx"] },
+                                    quantity: { $arrayElemAt: ["$quantityIds", "$$idx"] }
+                                }
+                            }
+                        },
+                        email: 1,
+                        status: 1
+                    }
+                },
+                // Unwind the combined array
+                { $unwind: "$medicinesWithQuantities" },
+                // Ensure consistent order
+                { $sort: { "medicinesWithQuantities.medicineId": 1 } },
+                {
+                    $addFields: {
+                        medicinesObjectId: { $toObjectId: "$medicinesWithQuantities.medicineId" },
+                        quantity: "$medicinesWithQuantities.quantity"
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'allMedicines',
+                        let: { medicinesObjectId: '$medicinesObjectId', paymentEmail: '$email' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ['$_id', '$$medicinesObjectId'] },
+                                            { $eq: ['$email', emailId] }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                $project: {
+                                    medicinesName: 1,
+                                    perUnitPrice: 1,
+                                    discountPercentage: 1
+                                }
+                            }
+                        ],
+                        as: 'menuItems'
+                    }
+                },
+                { $unwind: '$menuItems' },
+                {
+                    $group: {
+                        _id: {
+                            medicinesName: '$menuItems.medicinesName',
+                            status: '$status'
+                        },
+                        quantity: { $sum: '$quantity' },
+                        totalPrice: { $sum: { $multiply: ['$menuItems.perUnitPrice', '$quantity'] } },
+                        revenue: { $sum: { $multiply: ['$menuItems.perUnitPrice', { $subtract: [1, { $divide: ['$menuItems.discountPercentage', 100] }] }, '$quantity'] } }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        medicinesName: '$_id.medicinesName',
+                        status: '$_id.status',
+                        quantity: '$quantity',
+                        totalPrice: '$totalPrice',
+                        revenue: '$revenue'
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$status',
+                        items: { $push: '$$ROOT' }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        status: '$_id',
+                        items: '$items'
+                    }
+                }
+            ]).toArray();
+
+            res.send(result);
+        });
+
+        // sale for mixed
+        app.get('/sales/stat/', async (req, res) => {
+            const result = await paymentsCollection.aggregate([
+                // Combine medicinesIds and quantityIds into a single array of objects
+                {
+                    $project: {
+                        medicinesWithQuantities: {
+                            $map: {
+                                input: { $range: [0, { $size: "$medicinesIds" }] },
+                                as: "idx",
+                                in: {
+                                    medicineId: { $arrayElemAt: ["$medicinesIds", "$$idx"] },
+                                    quantity: { $arrayElemAt: ["$quantityIds", "$$idx"] }
+                                }
+                            }
+                        },
+                        email: 1,
+                        date: 1,
+                        status: 1
+                    }
+                },
+                // Unwind the combined array
+                { $unwind: "$medicinesWithQuantities" },
+                // Ensure consistent order
+                { $sort: { "medicinesWithQuantities.medicineId": 1 } },
+                {
+                    $addFields: {
+                        medicinesObjectId: { $toObjectId: "$medicinesWithQuantities.medicineId" },
+                        quantity: "$medicinesWithQuantities.quantity"
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'allMedicines',
+                        let: { medicinesObjectId: '$medicinesObjectId', paymentEmail: '$email' },
+                        pipeline: [
+                            {
+                                $match: {
+                                    $expr: {
+                                        $and: [
+                                            { $eq: ['$_id', '$$medicinesObjectId'] }
+                                        ]
+                                    }
+                                }
+                            },
+                            {
+                                $project: {
+                                    medicinesName: 1,
+                                    email: 1,
+                                    date: 1,
+                                    perUnitPrice: 1,
+                                    discountPercentage: 1,
+                                    company: 1  // Include the company field
+                                }
+                            }
+                        ],
+                        as: 'menuItems'
+                    }
+                },
+                { $unwind: '$menuItems' },
+                {
+                    $group: {
+                        _id: {
+                            medicinesName: '$menuItems.medicinesName',
+
+                            sellerEmail: '$menuItems.email', // Include company in the group key
+                            status: '$status',
+                            email: '$email',
+                            date: '$date'
+                        },
+                        quantity: { $sum: '$quantity' },
+                        totalPrice: { $sum: { $multiply: ['$menuItems.perUnitPrice', '$quantity'] } },
+                        revenue: { $sum: { $multiply: ['$menuItems.perUnitPrice', { $subtract: [1, { $divide: ['$menuItems.discountPercentage', 100] }] }, '$quantity'] } }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        medicinesName: '$_id.medicinesName',
+                        sellerEmail: '$_id.sellerEmail',  // Project the company field
+                        status: '$_id.status',
+                        email: '$_id.email',
+                        date: '$_id.date',
+                        quantity: '$quantity',
+                        totalPrice: '$totalPrice',
+                        revenue: '$revenue'
+                    }
+                },
+                {
+                    $group: {
+                        _id: '$status',
+                        items: { $push: '$$ROOT' }
+                    }
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        status: '$_id',
+                        items: '$items'
+                    }
+                }
+            ]).toArray();
+        
+            res.send(result);
+        });
+        
+
 
 
 
