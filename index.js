@@ -44,6 +44,7 @@ async function run() {
         const categoryCollection = client.db('medicineDB').collection('allcategory');
         const sellerBannerCollection = client.db('medicineDB').collection('sellerBanner');
         const activeBannerCollection = client.db('medicineDB').collection('ActiveBanner');
+        const invoiceCollection = client.db('medicineDB').collection('invoice');
         // admin related 
         const verifyToken = (req, res, next) => {
             console.log('inside toktok ', req.headers.authorization)
@@ -430,6 +431,48 @@ async function run() {
             console.log('payment info', paymentResult, deleteResult);
 
         })
+        // invoice
+        // store appointment
+        app.post('/payments/invoice/:email', async (req, res) => {
+            try {
+                const medicine = req.body;
+                const email = req.params.email;
+        
+                if (!Array.isArray(medicine)) {
+                    return res.status(400).send('Expected an array of payment objects');
+                }
+                const deleteResult = await invoiceCollection.deleteMany({ userEmail: email });
+                // Insert the payment objects
+                const insertResult = await invoiceCollection.insertMany(medicine);
+        
+                // Delete documents from invoiceCollection based on email
+                
+        
+                res.status(201).send({
+                    insertedCount: insertResult.insertedCount,
+                    deletedCount: deleteResult.deletedCount
+                });
+            } catch (error) {
+                console.error(error);
+                res.status(500).send('Internal Server Error');
+            }
+        });
+        
+
+
+        app.get('/payments/invoice/:email', async (req, res) => {
+            try {
+                const email=req.params.email;
+                const query = { userEmail: email }
+                const result = await invoiceCollection.find(query).toArray();
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+
+        })
+
 
         // seller
         app.get('/sellerMedicines/:email', verifyToken, verifySeller, async (req, res) => {
