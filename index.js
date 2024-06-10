@@ -15,6 +15,8 @@ const port = process.env.PORT || 5000;
 app.use(cors({
     origin: [
         'http://localhost:5173',
+        'https://medicine-world-b0afb.web.app',
+        'https://medicine-world-b0afb.firebaseapp.com'
     ],
     credentials: true
 }));
@@ -343,6 +345,19 @@ async function run() {
                 const email = req.query.email;
                 const query = { userEmail: email }
                 const result = await addCardCollection.find(query).toArray();
+                // console.log("Result:", result); // Debugging
+                res.send(result);
+            } catch (error) {
+                console.error(error);
+                res.status(500).send("Internal Server Error");
+            }
+        });
+         // load user
+         app.get('/users', async (req, res) => {
+            try {
+                
+                const query = { role: 'user' }
+                const result = await userCollection.find(query).toArray();
                 // console.log("Result:", result); // Debugging
                 res.send(result);
             } catch (error) {
@@ -718,7 +733,7 @@ async function run() {
             }
         });
         //admin Payment get
-        app.get('/admin/payment', async (req, res) => {
+        app.get('/admin/payment',verifyToken,verifyAdmin, async (req, res) => {
             try {
                 const result = await paymentsCollection.find().toArray();
                 res.send(result);
@@ -729,7 +744,7 @@ async function run() {
 
         })
         // admin payment history
-        app.patch('/admin/payment/:id', async (req, res) => {
+        app.patch('/admin/payment/:id',verifyToken, async (req, res) => {
             const id = req.params.id;
             const payment = req.body;
             const query = { _id: new ObjectId(id) };
@@ -746,7 +761,7 @@ async function run() {
 
         })
         // payment
-        app.get('/admin/allPayment', async (req, res) => {
+        app.get('/admin/allPayment',verifyToken, async (req, res) => {
             try {
                 const result = await paymentsCollection.find({status:'paid'}).toArray();
                 const result1 = await paymentsCollection.find({status:'pending'}).toArray();
@@ -779,7 +794,7 @@ async function run() {
 
 
         // mixed 
-        app.get('/seller/stat/:email', async (req, res) => {
+        app.get('/seller/stat/:email',verifyToken,verifySeller, async (req, res) => {
             const emailId = req.params.email;
             console.log(emailId);
 
@@ -878,7 +893,7 @@ async function run() {
         });
 
         // sale for mixed
-        app.get('/sales/stat/', async (req, res) => {
+        app.get('/sales/stat/',verifyToken,verifyAdmin, async (req, res) => {
             const result = await paymentsCollection.aggregate([
                 // Combine medicinesIds and quantityIds into a single array of objects
                 {
