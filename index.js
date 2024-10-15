@@ -118,6 +118,28 @@ async function run() {
             res.send(result)
         })
 
+        app.post('/userAddress', async (req, res) => {
+            const user = req.body;
+            // duplicate email not granted;
+            const query = { email: user.email };
+            const existingUser = await userCollection.findOne(query);
+            if (existingUser) {
+
+                const updateDoc = {
+                    $set: {
+                        image: user.image,
+                        name: user.name,
+                    },
+                };
+                const result = await userCollection.updateOne(query, updateDoc);
+                res.send(result)
+            }
+        })
+
+
+        //update user profile
+    
+
         // make admin
         // app.patch('/user/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
         //     const id = req.params.id;
