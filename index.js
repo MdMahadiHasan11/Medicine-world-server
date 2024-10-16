@@ -106,19 +106,52 @@ async function run() {
 
 
 
+        //user update
         app.post('/user', async (req, res) => {
             const user = req.body;
-            // duplicate email not granted;
             const query = { email: user.email };
-            const existingUser = await userCollection.findOne(query);
-            if (existingUser) {
-                return res.send({ message: 'user already exist', insertedId: null })
-            }
-            const result = await userCollection.insertOne(user);
-            res.send(result)
-        })
 
-       
+            // Check if user already exists
+            const existingUser = await userCollection.findOne(query);
+
+            if (existingUser) {
+                // If user exists, update the user's name and image
+                const update = {
+                    $set: {
+                        name: user.name,    // update the name
+                        image: user.image   // update the image
+                    }
+                };
+                const result = await userCollection.updateOne(query, update);
+                return res.send({ message: 'User updated successfully', matchedCount: result.matchedCount, modifiedCount: result.modifiedCount });
+            }
+
+            // If user does not exist, insert new user
+            const result = await userCollection.insertOne(user);
+            res.send({ message: 'User created successfully', insertedId: result.insertedId });
+        });
+
+        //get one current user
+        app.get('/userInfo/:email', async (req, res) => {
+            try {
+                const email = req.params.email;
+
+                // Searching for user by email
+                const existingUser = await userCollection.findOne({ email: email });
+
+                if (existingUser) {
+                    // User exists, send user details
+                    res.send({ user: existingUser });
+                } else {
+                    // User does not exist
+                    res.send({ message: 'User does not exist', insertedId: null });
+                }
+            } catch (error) {
+                console.error('Error fetching user:', error);
+                res.status(500).send({ message: 'Internal server error' });
+            }
+        });
+
         // make admin
         // app.patch('/user/admin/:id', verifyToken, verifyAdmin, async (req, res) => {
         //     const id = req.params.id;
@@ -353,10 +386,10 @@ async function run() {
                 res.status(500).send("Internal Server Error");
             }
         });
-         // load user
-         app.get('/users', async (req, res) => {
+        // load user
+        app.get('/users', async (req, res) => {
             try {
-                
+
                 const query = { role: 'user' }
                 const result = await userCollection.find(query).toArray();
                 // console.log("Result:", result); // Debugging
@@ -734,7 +767,7 @@ async function run() {
             }
         });
         //admin Payment get
-        app.get('/admin/payment',verifyToken,verifyAdmin, async (req, res) => {
+        app.get('/admin/payment', verifyToken, verifyAdmin, async (req, res) => {
             try {
                 const result = await paymentsCollection.find().toArray();
                 res.send(result);
@@ -745,7 +778,7 @@ async function run() {
 
         })
         // admin payment history
-        app.patch('/admin/payment/:id',verifyToken, async (req, res) => {
+        app.patch('/admin/payment/:id', verifyToken, async (req, res) => {
             const id = req.params.id;
             const payment = req.body;
             const query = { _id: new ObjectId(id) };
@@ -762,11 +795,11 @@ async function run() {
 
         })
         // payment
-        app.get('/admin/allPayment',verifyToken, async (req, res) => {
+        app.get('/admin/allPayment', verifyToken, async (req, res) => {
             try {
-                const result = await paymentsCollection.find({status:'paid'}).toArray();
-                const result1 = await paymentsCollection.find({status:'pending'}).toArray();
-                res.send([result,result1]);
+                const result = await paymentsCollection.find({ status: 'paid' }).toArray();
+                const result1 = await paymentsCollection.find({ status: 'pending' }).toArray();
+                res.send([result, result1]);
             } catch (error) {
                 console.error(error);
                 res.status(500).send("Internal Server Error");
@@ -795,7 +828,7 @@ async function run() {
 
 
         // mixed 
-        app.get('/seller/stat/:email',verifyToken,verifySeller, async (req, res) => {
+        app.get('/seller/stat/:email', verifyToken, verifySeller, async (req, res) => {
             const emailId = req.params.email;
             console.log(emailId);
 
@@ -894,7 +927,7 @@ async function run() {
         });
 
         // sale for mixed
-        app.get('/sales/stat/',verifyToken,verifyAdmin, async (req, res) => {
+        app.get('/sales/stat/', verifyToken, verifyAdmin, async (req, res) => {
             const result = await paymentsCollection.aggregate([
                 // Combine medicinesIds and quantityIds into a single array of objects
                 {
